@@ -1,0 +1,26 @@
+{
+  "task": "add-payment",
+  "status": "active",
+  "goal": {
+    "objective": "o",
+    "done_when": "d"
+  },
+  "projects": [
+    {
+      "name": "front",
+      "repo": "",
+      "base": "develop",
+      "branch": "feat/x",
+      "worktree": "front/wt",
+      "spec": "front/spec.md",
+      "status": "in_progress",
+      "worktree_exists": false,
+      "live_branch": ""
+    }
+  ],
+  "worklist": [],
+  "progress": {
+    "done": 0,
+    "total": 0
+  }
+}

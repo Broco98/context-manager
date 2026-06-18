@@ -1,0 +1,7 @@
+{
+  "task": "add-payment",
+  "project": "front",
+  "spec": "front/spec.md",
+  "worktree": "front/wt",
+  "status": "in_progress"
+}
