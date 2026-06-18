@@ -17,20 +17,9 @@ type specOut struct {
 }
 
 func runSpec(home, cwd, taskFlag, projectFlag string) (specOut, error) {
-	loc, _ := store.Locate(home, cwd)
-	name := taskFlag
-	if name == "" && loc != nil {
-		name = loc.Task
-	}
-	if name == "" {
-		return specOut{}, output.Errorf(jsonOut, output.ErrUsage, "not inside a task; pass --task")
-	}
-	proj := projectFlag
-	if proj == "" && loc != nil {
-		proj = loc.Project
-	}
-	if proj == "" {
-		return specOut{}, output.Errorf(jsonOut, output.ErrUsage, "no project resolved; pass --project")
+	name, proj, err := resolveTaskProject(home, cwd, taskFlag, projectFlag)
+	if err != nil {
+		return specOut{}, err
 	}
 	dir, err := checkedTaskDir(home, name)
 	if err != nil {
@@ -62,7 +51,10 @@ func init() {
 			if err != nil {
 				return err
 			}
-			cwd, _ := os.Getwd()
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
 			out, err := runSpec(home, cwd, taskFlag, project)
 			if err != nil {
 				return err

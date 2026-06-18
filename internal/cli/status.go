@@ -78,7 +78,7 @@ func runStatusDetail(home, taskName string) (detailOut, error) {
 	}
 	tk, err := task.Load(dir)
 	if err != nil {
-		return detailOut{}, output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", taskName)
+		return detailOut{}, classifyLoadErr(taskName, err)
 	}
 	done, total := tk.Progress()
 	projects := make([]projectDetail, 0, len(tk.Projects))
@@ -138,7 +138,10 @@ func init() {
 			}
 			name := taskFlag
 			if name == "" {
-				cwd, _ := os.Getwd()
+				cwd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
 				if loc, _ := store.Locate(home, cwd); loc != nil {
 					name = loc.Task
 				}

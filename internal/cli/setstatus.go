@@ -59,7 +59,10 @@ func init() {
 			if err != nil {
 				return err
 			}
-			cwd, _ := os.Getwd()
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
 			name, proj, err := resolveTaskProject(home, cwd, taskFlag, project)
 			if err != nil {
 				return err

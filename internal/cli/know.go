@@ -23,6 +23,10 @@ func runKnowAdd(home string, in knowledge.PageInput) (string, error) {
 	if !knowledge.ValidCategory(in.Category) {
 		return "", output.Errorf(jsonOut, output.ErrUsage, "--category must be one of architecture|decision|gotcha|pattern")
 	}
+	// Reject an empty body so an empty consolidation can't satisfy `ctx done`'s gate.
+	if strings.TrimSpace(in.Body) == "" {
+		return "", output.Errorf(jsonOut, output.ErrUsage, "knowledge body is empty; pipe content, use --from, or provide a non-empty page")
+	}
 	if in.When == "" {
 		in.When = time.Now().UTC().Format("2006-01-02")
 	}
@@ -50,7 +54,7 @@ func init() {
 	var projects, tags []string
 	var topic, category, from, sourceTask string
 	addCmd := &cobra.Command{
-		Use: "add", Short: "Create or merge a topic page",
+		Use: "add", Short: "Create or merge a topic page", Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			home, err := store.Home()
 			if err != nil {

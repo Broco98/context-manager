@@ -29,7 +29,10 @@ func init() {
 			if err != nil {
 				return err
 			}
-			cwd, _ := os.Getwd()
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
 			w, err := runWhere(home, cwd)
 			if err != nil {
 				return err

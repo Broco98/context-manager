@@ -58,6 +58,16 @@ func resolveTask(home, flag string) (string, error) {
 	return loc.Task, nil
 }
 
+// classifyLoadErr maps a task.Load error to the correct output error code.
+// os.IsNotExist means the task.yaml is absent (NOT_FOUND); any other error
+// means it is present but unreadable (STATE).
+func classifyLoadErr(name string, err error) error {
+	if os.IsNotExist(err) {
+		return output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", name)
+	}
+	return output.Errorf(jsonOut, output.ErrState, "task %q is unreadable: %v", name, err)
+}
+
 func joinArgs(a []string) string { return strings.Join(a, " ") }
 
 // homeAndTask resolves CTX_HOME and the active task (flag or CWD).

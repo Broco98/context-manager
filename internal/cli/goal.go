@@ -40,7 +40,8 @@ func init() {
 				return err
 			}
 			if handoff {
-				return output.Emit(jsonOut, goal.Handoff(tk), map[string]string{"handoff": goal.Handoff(tk)})
+				h := goal.Handoff(tk)
+				return output.Emit(jsonOut, h, map[string]string{"handoff": h})
 			}
 			return output.Emit(jsonOut, "objective: "+tk.Goal.Objective+"\ndone_when: "+tk.Goal.DoneWhen, tk.Goal)
 		},

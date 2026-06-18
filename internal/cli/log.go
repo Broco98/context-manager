@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"time"
 
 	"github.com/kimhyoyeon/context-manager/internal/output"
@@ -10,6 +11,9 @@ import (
 )
 
 func runLog(home, taskName, msg string) error {
+	if strings.TrimSpace(msg) == "" {
+		return output.Errorf(jsonOut, output.ErrUsage, "message is empty")
+	}
 	dir, err := checkedTaskDir(home, taskName)
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/kimhyoyeon/context-manager/internal/output"
 	"github.com/kimhyoyeon/context-manager/internal/task"
@@ -21,12 +22,15 @@ func loadTask(home, name string) (string, *task.Task, error) {
 	}
 	tk, err := task.Load(dir)
 	if err != nil {
-		return "", nil, output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", name)
+		return "", nil, classifyLoadErr(name, err)
 	}
 	return dir, tk, nil
 }
 
 func runTaskAdd(home, taskName, text string) (task.WorkItem, error) {
+	if strings.TrimSpace(text) == "" {
+		return task.WorkItem{}, output.Errorf(jsonOut, output.ErrUsage, "message is empty")
+	}
 	dir, tk, err := loadTask(home, taskName)
 	if err != nil {
 		return task.WorkItem{}, err
