@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"strings"
 
 	"github.com/kimhyoyeon/context-manager/internal/output"
 	"github.com/kimhyoyeon/context-manager/internal/store"
@@ -55,4 +56,16 @@ func resolveTask(home, flag string) (string, error) {
 		return "", output.Errorf(jsonOut, output.ErrUsage, "not inside a task; pass --task")
 	}
 	return loc.Task, nil
+}
+
+func joinArgs(a []string) string { return strings.Join(a, " ") }
+
+// homeAndTask resolves CTX_HOME and the active task (flag or CWD).
+func homeAndTask(taskFlag string) (string, string, error) {
+	home, err := store.Home()
+	if err != nil {
+		return "", "", err
+	}
+	name, err := resolveTask(home, taskFlag)
+	return home, name, err
 }

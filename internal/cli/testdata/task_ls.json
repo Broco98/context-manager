@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "text": "build ui",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "text": "build api",
+      "status": "doing"
+    }
+  ],
+  "progress": {
+    "done": 1,
+    "total": 2
+  }
+}
