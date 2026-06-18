@@ -17,6 +17,9 @@ persistent knowledge — all under `~/.ctx`.
     ctx resume --json          # rehydrate a new session
     ctx goal --handoff         # re-arm native /goal
     ctx know search "결제"      # look up prior knowledge
+    ctx know add --project front --topic pay-endpoint --source-task add-payment
+                               # consolidate findings (required before done)
+    ctx done                   # finalize (refuses dirty/unmerged worktrees)
 
 ## For AI assistants
 
