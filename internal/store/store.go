@@ -149,3 +149,53 @@ func ListTasks(home string) ([]string, error) {
 	sort.Strings(names)
 	return names, nil
 }
+
+// Note: "fmt" and "strings" are already in the import block from Task 3 Step 3
+// (added for ValidName/ValidRelPath), so the Locate code below needs no new imports.
+
+type Location struct {
+	Home    string
+	Task    string
+	Project string
+	TaskDir string
+}
+
+// Locate walks up from cwd to the first ancestor containing task.yaml, but never
+// past the CTX_HOME boundary. It returns {Home} (Task == "") when cwd is outside
+// home or when no managed task is found within home, so a stray task.yaml outside
+// CTX_HOME is never mistaken for a ctx task. The walk stops once it reaches the
+// cleaned home dir: tasks live directly under home, so home itself is the last
+// directory inspected.
+func Locate(home, cwd string) (*Location, error) {
+	cleanHome := filepath.Clean(home)
+	dir := filepath.Clean(cwd)
+
+	// cwd must be within home (home itself counts). Use the boundary-safe prefix
+	// check so "/a/.ctx-other" is not treated as inside "/a/.ctx".
+	if dir != cleanHome && !strings.HasPrefix(dir, cleanHome+string(filepath.Separator)) {
+		return &Location{Home: home}, nil
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "task.yaml")); err == nil {
+			loc := &Location{Home: home, TaskDir: dir, Task: filepath.Base(dir)}
+			if rel, rerr := filepath.Rel(dir, filepath.Clean(cwd)); rerr == nil && rel != "." {
+				parts := strings.Split(rel, string(filepath.Separator))
+				if len(parts) > 0 && parts[0] != ".." && parts[0] != "" {
+					loc.Project = parts[0]
+				}
+			}
+			return loc, nil
+		}
+		// Stop at the home boundary: tasks live directly under home, so home is
+		// the last directory we inspect. Never walk to the filesystem root.
+		if dir == cleanHome {
+			return &Location{Home: home}, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return &Location{Home: home}, nil
+		}
+		dir = parent
+	}
+}
