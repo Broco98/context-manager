@@ -1,0 +1,12 @@
+# OMC / session state
+.omc/
+
+# Go build artifacts
+/ctx
+/dist/
+*.test
+*.out
+coverage.*
+
+# OS
+.DS_Store
