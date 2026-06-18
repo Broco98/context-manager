@@ -1,0 +1,14 @@
+{
+  "task": "add-payment",
+  "status": "active",
+  "goal": {
+    "objective": "o",
+    "done_when": "d"
+  },
+  "background": "MISSING",
+  "plan": "MISSING",
+  "worklist": [],
+  "next": "",
+  "recent_journal": null,
+  "projects": []
+}

@@ -1,0 +1,4 @@
+Goal handoff for task add-payment:
+Objective: o
+Run this in-session to re-arm the native goal:
+  /goal d
