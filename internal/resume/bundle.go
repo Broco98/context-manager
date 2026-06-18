@@ -36,6 +36,9 @@ type Bundle struct {
 
 func Build(taskDir string, tk *task.Task, gitState func(task.Project) ProjState) (*Bundle, error) {
 	md := ""
+	// A missing/unreadable context.md is intentionally treated as empty: all
+	// sections then report MISSING via Section, and the (*Bundle, error) signature
+	// is preserved so callers handle it uniformly.
 	if data, err := os.ReadFile(filepath.Join(taskDir, "context.md")); err == nil {
 		md = string(data)
 	}
@@ -44,10 +47,19 @@ func Build(taskDir string, tk *task.Task, gitState func(task.Project) ProjState)
 	if len(journal) > 5 {
 		journal = journal[len(journal)-5:]
 	}
+	// Normalize empty slices for a stable JSON contract: RecentJournal and Worklist
+	// must serialize as [] not null (Projects is already []ProjState{} below).
+	if journal == nil {
+		journal = []string{}
+	}
+	worklist := tk.Worklist
+	if worklist == nil {
+		worklist = []task.WorkItem{}
+	}
 	b := &Bundle{
 		Task: tk.Name, Status: string(tk.Status), Goal: tk.Goal,
 		Background: Section(sections, "Background"), Plan: Section(sections, "Plan"),
-		Worklist: tk.Worklist, Next: tk.NextWork(), RecentJournal: journal,
+		Worklist: worklist, Next: tk.NextWork(), RecentJournal: journal,
 		Projects: []ProjState{},
 	}
 	for _, p := range tk.Projects {

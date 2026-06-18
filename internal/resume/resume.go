@@ -39,6 +39,9 @@ func Section(m map[string]string, name string) string {
 	return "MISSING"
 }
 
+// JournalEntries collects the Journal section's single-line entries. Journal
+// entries are single-line by contract (`- [date] msg`), so only `- ` lines are
+// collected.
 func JournalEntries(md string) []string {
 	body := ParseSections(md)["Journal"]
 	var out []string
