@@ -18,12 +18,32 @@ func git(dir string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// checkBaseRef rejects a base ref beginning with '-', which git would misparse
+// as a flag in the rev-list revspec (e.g. base+"...HEAD").
+func checkBaseRef(base string) error {
+	if strings.HasPrefix(base, "-") {
+		return fmt.Errorf("invalid base ref %q", base)
+	}
+	return nil
+}
+
 func Add(repo, worktreePath, branch, base string) error {
+	if branch == "" || base == "" {
+		return fmt.Errorf("branch and base are required")
+	}
+	// A branch passed as `-b <branch>` sits before the `--` separator, so git
+	// sees it before the separator takes effect and would misparse it as a flag.
+	// The `--` separator only protects `base`; an explicit guard is required for
+	// `branch`.
+	if strings.HasPrefix(branch, "-") {
+		return fmt.Errorf("invalid branch %q", branch)
+	}
 	abs, err := filepath.Abs(worktreePath)
 	if err != nil {
 		return err
 	}
-	_, err = git(repo, "worktree", "add", abs, "-b", branch, base)
+	// The "--" separator stops git from misparsing `base` as a flag.
+	_, err = git(repo, "worktree", "add", abs, "-b", branch, "--", base)
 	return err
 }
 
@@ -32,9 +52,12 @@ func Remove(repo, worktreePath string, force bool) error {
 	if force {
 		args = append(args, "--force")
 	}
-	abs, _ := filepath.Abs(worktreePath)
+	abs, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return err
+	}
 	args = append(args, abs)
-	_, err := git(repo, args...)
+	_, err = git(repo, args...)
 	return err
 }
 
@@ -84,6 +107,9 @@ func Status(worktreePath, base string) (*State, error) {
 	}
 	st := &State{Branch: branch, Dirty: strings.TrimSpace(porcelain) != ""}
 	if base != "" {
+		if err := checkBaseRef(base); err != nil {
+			return nil, err
+		}
 		// left = commits in base not HEAD (behind), right = in HEAD not base (ahead).
 		// A failed rev-list, an unexpected field count, or an unparseable count
 		// MUST be an error: ahead/behind drive `ctx resume` (live-state availability)
@@ -131,6 +157,9 @@ func BranchStatus(worktreePath, branch, base string) (*State, error) {
 	}
 	st := &State{Branch: branch, Dirty: strings.TrimSpace(porcelain) != ""}
 	if base != "" {
+		if err := checkBaseRef(base); err != nil {
+			return nil, err
+		}
 		// left = commits in base not branch (behind), right = in branch not base (ahead).
 		counts, err := git(worktreePath, "rev-list", "--left-right", "--count", base+"..."+ref)
 		if err != nil {
@@ -172,9 +201,10 @@ func List(repo string) ([]Entry, error) {
 	out, err := git(repo, "worktree", "list", "--porcelain", "--expire=now")
 	if err != nil {
 		// Older git may not support --expire on `worktree list`; retry without it.
+		expireErr := err
 		out, err = git(repo, "worktree", "list", "--porcelain")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("worktree list failed (with --expire=now: %v; without: %w)", expireErr, err)
 		}
 	}
 	var entries []Entry
