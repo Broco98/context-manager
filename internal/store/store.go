@@ -124,7 +124,11 @@ func AtomicWrite(path string, data []byte) error {
 		os.Remove(tmpName)
 		return err
 	}
-	return os.Rename(tmpName, path)
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
 }
 
 // ListTasks returns names of directories under home that contain a task.yaml,
@@ -139,7 +143,7 @@ func ListTasks(home string) ([]string, error) {
 	}
 	var names []string
 	for _, e := range entries {
-		if !e.IsDir() || (len(e.Name()) > 0 && e.Name()[0] == '_') {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), "_") {
 			continue
 		}
 		if _, err := os.Stat(filepath.Join(home, e.Name(), "task.yaml")); err == nil {
@@ -167,8 +171,20 @@ type Location struct {
 // cleaned home dir: tasks live directly under home, so home itself is the last
 // directory inspected.
 func Locate(home, cwd string) (*Location, error) {
-	cleanHome := filepath.Clean(home)
-	dir := filepath.Clean(cwd)
+	// Canonicalize BOTH home and cwd via symlink resolution before the boundary
+	// check and walk: a symlinked CTX_HOME or a resolved cwd (e.g. macOS /tmp ->
+	// /private/tmp) must not make Locate wrongly report "no task". resolveExisting
+	// follows symlinks of existing ancestors with a Clean fallback for paths that
+	// do not exist yet.
+	cleanHome, err := resolveExisting(home)
+	if err != nil {
+		return nil, err
+	}
+	canonCwd, err := resolveExisting(cwd)
+	if err != nil {
+		return nil, err
+	}
+	dir := canonCwd
 
 	// cwd must be within home (home itself counts). Use the boundary-safe prefix
 	// check so "/a/.ctx-other" is not treated as inside "/a/.ctx".
@@ -177,15 +193,20 @@ func Locate(home, cwd string) (*Location, error) {
 	}
 
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "task.yaml")); err == nil {
-			loc := &Location{Home: home, TaskDir: dir, Task: filepath.Base(dir)}
-			if rel, rerr := filepath.Rel(dir, filepath.Clean(cwd)); rerr == nil && rel != "." {
-				parts := strings.Split(rel, string(filepath.Separator))
-				if len(parts) > 0 && parts[0] != ".." && parts[0] != "" {
-					loc.Project = parts[0]
+		// Only accept a task.yaml whose directory is a DIRECT child of home: tasks
+		// live directly under home by contract, so a task.yaml found deeper (e.g. a
+		// nested repo inside a worktree) is NOT a ctx task — keep walking up.
+		if filepath.Dir(dir) == cleanHome {
+			if _, err := os.Stat(filepath.Join(dir, "task.yaml")); err == nil {
+				loc := &Location{Home: home, TaskDir: dir, Task: filepath.Base(dir)}
+				if rel, rerr := filepath.Rel(dir, canonCwd); rerr == nil && rel != "." {
+					parts := strings.Split(rel, string(filepath.Separator))
+					if len(parts) > 0 && parts[0] != ".." && parts[0] != "" {
+						loc.Project = parts[0]
+					}
 				}
+				return loc, nil
 			}
-			return loc, nil
 		}
 		// Stop at the home boundary: tasks live directly under home, so home is
 		// the last directory we inspect. Never walk to the filesystem root.
