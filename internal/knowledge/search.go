@@ -101,6 +101,8 @@ func Search(home string, q Query) ([]Result, error) {
 			titleToks := tokenize(p.Topic)
 			bodyToks := tokenize(p.Body)
 			for _, qt := range qtokens {
+				// This keyword tag-boost matches single-token tags only; exact
+				// multi-word tag matching is handled by the --tag facet filter above.
 				if contains(p.Tags, qt) {
 					score += 3
 				}

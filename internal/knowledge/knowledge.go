@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/kimhyoyeon/context-manager/internal/store"
@@ -189,6 +190,14 @@ func Add(home string, in PageInput) (string, error) {
 		}
 	}
 	topicSlug := Slug(in.Topic)
+	if topicSlug == "" {
+		return "", fmt.Errorf("topic %q has no slug-able characters", in.Topic)
+	}
+	// Default an empty When at the package boundary so a missing date never leaks
+	// into "## Update ()" or an empty last_reviewed.
+	if in.When == "" {
+		in.When = time.Now().UTC().Format("2006-01-02")
+	}
 	matches := findScopedPages(home, in.Projects, topicSlug)
 
 	var page *Page
@@ -196,6 +205,8 @@ func Add(home string, in PageInput) (string, error) {
 		// Merge EVERY in-scope page (e.g. front/pay.md AND back/pay.md) into one,
 		// unioning facets/tags/sources and concatenating bodies, so an explicit
 		// multi-project promotion never leaves a stale per-project duplicate.
+		// The FIRST writer's display Topic is intentionally retained: the slug is
+		// the identity, so later adds keep the original label rather than overwrite it.
 		page = matches[0].Page
 		for _, m := range matches[1:] {
 			page.Project = union(page.Project, m.Page.Project)
@@ -397,8 +408,13 @@ func appendLog(home, line string) error {
 	// Validate log.md against CTX_HOME before touching it: an existing log.md symlink
 	// could otherwise redirect the append (or the create below) to a file outside the
 	// store. ValidRelPath resolves symlinks on both ends, so a redirected log is
-	// rejected here rather than written off-store.
-	if _, verr := store.ValidRelPath(home, filepath.Join("_knowledge", "log.md")); verr != nil {
+	// rejected here rather than written off-store. Derive the rel path from the actual
+	// target p (mirroring how Add validates newPath) instead of a hardcoded literal.
+	rel, relErr := filepath.Rel(home, p)
+	if relErr != nil {
+		return relErr
+	}
+	if _, verr := store.ValidRelPath(home, rel); verr != nil {
 		return verr
 	}
 	// Read-modify-write via AtomicWrite (temp file + rename) instead of O_APPEND on the

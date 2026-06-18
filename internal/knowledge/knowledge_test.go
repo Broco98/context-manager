@@ -253,6 +253,54 @@ func TestFirstLineSnippetKeepsCJKValidUTF8(t *testing.T) {
 	}
 }
 
+// TestAddRejectsPunctuationOnlyTopic proves a topic whose slug is empty (e.g.
+// "...") is rejected with an error mentioning "slug-able" and no dotfile is
+// created.
+func TestAddRejectsPunctuationOnlyTopic(t *testing.T) {
+	home := t.TempDir()
+	_, err := Add(home, PageInput{
+		Projects: []string{"front"}, Topic: "...", Body: "x",
+		SourceTask: "t", When: "2026-06-18",
+	})
+	if err == nil {
+		t.Fatal("expected an error for a punctuation-only topic")
+	}
+	if !strings.Contains(err.Error(), "slug-able") {
+		t.Errorf("error message should mention \"slug-able\", got: %v", err)
+	}
+	// No dotfile (.md) should be created.
+	if _, statErr := os.Stat(filepath.Join(home, "_knowledge", "front", ".md")); !os.IsNotExist(statErr) {
+		t.Error("no .md dotfile should be written for an invalid topic")
+	}
+}
+
+// TestAddDefaultsEmptyWhen proves When: "" is accepted and the written page
+// contains neither "## Update ()" (empty date) nor a blank last_reviewed/when.
+func TestAddDefaultsEmptyWhen(t *testing.T) {
+	home := t.TempDir()
+	p, err := Add(home, PageInput{
+		Projects: []string{"front"}, Topic: "defaults", Body: "body text",
+		SourceTask: "t", When: "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fileContains(t, p, "## Update ()") {
+		t.Error("page must not contain \"## Update ()\" when When is defaulted")
+	}
+	data, readErr := os.ReadFile(p)
+	if readErr != nil {
+		t.Fatalf("read page: %v", readErr)
+	}
+	content := string(data)
+	if strings.Contains(content, "last_reviewed: \"\"") || strings.Contains(content, "last_reviewed: ''") {
+		t.Error("last_reviewed must not be empty when When is defaulted")
+	}
+	if strings.Contains(content, "when: \"\"") || strings.Contains(content, "when: ''") {
+		t.Error("when must not be empty in sources when When is defaulted")
+	}
+}
+
 func fileContains(t *testing.T, path, sub string) bool {
 	t.Helper()
 	data, err := os.ReadFile(path)
