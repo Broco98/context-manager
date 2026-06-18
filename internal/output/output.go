@@ -38,6 +38,8 @@ func Errorf(jsonMode bool, code, format string, a ...any) error {
 	if jsonMode {
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
+		// Best-effort: we are already rendering an error, so there is nothing to
+		// recover if the stdout write fails.
 		_ = enc.Encode(map[string]string{"error": msg, "code": code})
 	} else {
 		fmt.Fprintf(os.Stderr, "Error [%s]: %s\n", code, msg)
@@ -73,6 +75,8 @@ func Render(jsonMode bool, err error) error {
 	if jsonMode {
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
+		// Best-effort: we are already rendering an error, so there is nothing to
+		// recover if the stdout write fails.
 		_ = enc.Encode(map[string]string{"error": msg, "code": code})
 	} else {
 		fmt.Fprintf(os.Stderr, "Error [%s]: %s\n", code, msg)
