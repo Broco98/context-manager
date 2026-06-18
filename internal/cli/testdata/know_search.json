@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "path": "/_knowledge/front/routing.md",
+      "topic": "routing",
+      "score": 2,
+      "snippet": "uses next router",
+      "project": [
+        "front"
+      ]
+    }
+  ]
+}
