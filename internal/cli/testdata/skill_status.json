@@ -1,0 +1,8 @@
+[
+  {
+    "target": "claude",
+    "skillInstalled": true,
+    "skillMatchesEmbedded": true,
+    "snippetInstalled": true
+  }
+]
