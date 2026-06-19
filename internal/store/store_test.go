@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +58,68 @@ func TestListTasksExcludesUnderscoreAndSortsByName(t *testing.T) {
 	want := []string{"alpha", "zeta"}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// TestValidNameRejectsAdversarialInputs exercises the path-component validator
+// that guards every task/project dir name. These inputs are the entire reason the
+// function exists; previously none of them were asserted (0% direct coverage).
+func TestValidNameRejectsAdversarialInputs(t *testing.T) {
+	bad := []string{
+		"",           // empty
+		".",          // current dir
+		"..",         // parent dir
+		"../other",   // path-escape attempt
+		"a/b",        // embedded slash
+		"a\\b",       // embedded backslash
+		"_knowledge", // shadows the reserved knowledge dir
+		"_shared",    // shadows the reserved shared dir
+		"_x",         // any underscore-prefixed name is reserved
+		"a\x00b",     // NUL byte
+	}
+	for _, name := range bad {
+		if err := ValidName(name); err == nil {
+			t.Errorf("ValidName(%q) = nil, want error", name)
+		}
+	}
+	for _, name := range []string{"add-payment", "front", "back.v2", "a"} {
+		if err := ValidName(name); err != nil {
+			t.Errorf("ValidName(%q) = %v, want nil", name, err)
+		}
+	}
+}
+
+// TestValidRelPathRejectsEscapesAndAbsolutes covers the containment validator's
+// rejection of absolute paths and lexical "../" escapes, plus the happy path
+// returning a canonical absolute form beneath base.
+func TestValidRelPathRejectsEscapesAndAbsolutes(t *testing.T) {
+	base := t.TempDir()
+	for _, rel := range []string{"", "/etc/passwd", "../escape", "a/../../escape"} {
+		if _, err := ValidRelPath(base, rel); err == nil {
+			t.Errorf("ValidRelPath(base, %q) = nil, want error", rel)
+		}
+	}
+	got, err := ValidRelPath(base, "front/wt")
+	if err != nil {
+		t.Fatalf("contained path errored: %v", err)
+	}
+	cbase, _ := filepath.EvalSymlinks(base)
+	if !strings.HasPrefix(got, cbase) {
+		t.Errorf("canonical path %q not under base %q", got, cbase)
+	}
+}
+
+// TestValidRelPathRejectsSymlinkEscape is the security-boundary test: a symlink
+// INSIDE base pointing OUTSIDE it has no ".." in the relative path, so a lexical
+// check would pass — only canonicalization (resolveExisting) catches it.
+func TestValidRelPathRejectsSymlinkEscape(t *testing.T) {
+	base := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink unsupported: %v", err)
+	}
+	if _, err := ValidRelPath(base, "link/secret"); err == nil {
+		t.Error("ValidRelPath followed a symlink escaping base; want error")
 	}
 }
