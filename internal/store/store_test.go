@@ -123,3 +123,15 @@ func TestValidRelPathRejectsSymlinkEscape(t *testing.T) {
 		t.Error("ValidRelPath followed a symlink escaping base; want error")
 	}
 }
+
+// TestListTasksReturnsNilForMissingHome covers the first-run contract: a CTX_HOME
+// that does not exist yet returns (nil, nil), not an error.
+func TestListTasksReturnsNilForMissingHome(t *testing.T) {
+	got, err := ListTasks(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatalf("ListTasks on missing home errored: %v", err)
+	}
+	if got != nil {
+		t.Errorf("got %v, want nil", got)
+	}
+}

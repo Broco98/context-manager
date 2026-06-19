@@ -301,3 +301,21 @@ func TestStatusAndBranchStatusRejectLeadingDashBase(t *testing.T) {
 		t.Error(`BranchStatus base "-rf" = nil, want error`)
 	}
 }
+
+// TestFindReportsMissingAfterOutOfBandDirDeletion exercises Find's stale-metadata
+// (prunable) branch: deleting the worktree directory directly — not via Remove —
+// leaves git's admin entry behind, and Find must still report it missing.
+func TestFindReportsMissingAfterOutOfBandDirDeletion(t *testing.T) {
+	gitOrSkip(t)
+	repo := newRepo(t)
+	wt := filepath.Join(t.TempDir(), "wt")
+	if err := Add(repo, wt, "feat/x", "main"); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+	if _, ok, err := Find(repo, wt); err != nil || ok {
+		t.Errorf("Find after out-of-band dir deletion should be missing: ok=%v err=%v", ok, err)
+	}
+}
