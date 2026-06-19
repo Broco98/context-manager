@@ -117,9 +117,19 @@ func upsertSnippet(home string, t skillTarget) (action, path string, err error) 
 
 	bi := strings.Index(content, snippetBegin)
 	ei := strings.Index(content, snippetEnd)
+	wellFormed := bi >= 0 && ei > bi
+	// A partial or inverted marker pair (begin without end, end without begin, or
+	// end before begin) means a human truncated or garbled the managed block.
+	// Appending a fresh block here would duplicate markers, and a later run could
+	// delete the content trapped between the orphaned markers — so refuse rather
+	// than corrupt, and tell the user to fix it (fail closed).
+	if (bi >= 0 || ei >= 0) && !wellFormed {
+		return "", path, output.Errorf(jsonOut, output.ErrState,
+			"%s has a malformed ctx marker block (mismatched %s / %s); fix or remove it, then re-run", path, snippetBegin, snippetEnd)
+	}
 	var updated string
 	switch {
-	case bi >= 0 && ei > bi:
+	case wellFormed:
 		end := ei + len(snippetEnd)
 		if end < len(content) && content[end] == '\n' {
 			end++ // consume one trailing newline so the block's own newline doesn't double
@@ -163,7 +173,12 @@ func runSkillStatus(home string, names []string) ([]skillStatusOut, error) {
 			s.SkillMatchesEmbedded = string(b) == assets.SkillMD
 		}
 		if b, err := os.ReadFile(filepath.Join(home, t.homeRel, t.snippetFile)); err == nil {
-			s.SnippetInstalled = strings.Contains(string(b), snippetBegin)
+			// Require a well-formed begin...end pair, matching what upsertSnippet
+			// treats as an installed block — a lone or inverted marker is not "installed".
+			c := string(b)
+			bi := strings.Index(c, snippetBegin)
+			ei := strings.Index(c, snippetEnd)
+			s.SnippetInstalled = bi >= 0 && ei > bi
 		}
 		out = append(out, s)
 	}
