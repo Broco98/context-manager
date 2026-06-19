@@ -216,14 +216,13 @@ dirty/미머지 worktree가 있으면 마무리를 거부합니다. `--force`는
    복제하지 않습니다.
 
 ```sh
-# 스킬 설치 (복사하거나, 이 레포를 추적하도록 symlink)
-cp -R skill/context-manager ~/.claude/skills/context-manager     # Claude Code
-ln -snf "$(pwd)/skill/context-manager" ~/.claude/skills/context-manager   # ...또는 symlink
-cp -R skill/context-manager ~/.codex/skills/context-manager       # Codex
+# 한 줄 설치: 감지된 에이전트(~/.claude, ~/.codex)에 스킬 + 발견 포인터를 멱등하게.
+ctx skill install            # 자동 감지 (또는 --target claude|codex 로 대상 지정)
+ctx skill status             # 설치 상태 확인
 
-# 전역 발견 포인터 설치
-cat docs/global-claude-md-snippet.md >> ~/.claude/CLAUDE.md       # Claude
-cat docs/global-claude-md-snippet.md >> ~/.codex/AGENTS.md        # Codex
+# (수동 fallback) 직접 깔고 싶다면:
+#   cp -R skill/context-manager ~/.claude/skills/context-manager
+#   cat docs/global-claude-md-snippet.md >> ~/.claude/CLAUDE.md
 ```
 
 ---
