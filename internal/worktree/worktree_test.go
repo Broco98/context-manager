@@ -261,3 +261,43 @@ func TestListAndFindReportGitTruth(t *testing.T) {
 		t.Errorf("Find after Remove should be missing: ok=%v err=%v", ok, err)
 	}
 }
+
+// TestCheckBaseRefRejectsLeadingDash fires the leading-dash guard's error branch
+// directly (shipped without a regression test; error branch was never exercised).
+func TestCheckBaseRefRejectsLeadingDash(t *testing.T) {
+	if err := checkBaseRef("-rf"); err == nil {
+		t.Error(`checkBaseRef("-rf") = nil, want error (git would misparse it as a flag)`)
+	}
+	if err := checkBaseRef("main"); err != nil {
+		t.Errorf(`checkBaseRef("main") = %v, want nil`, err)
+	}
+}
+
+// TestAddRejectsLeadingDashBranch covers Add's inline branch guard (the branch
+// sits before git's "--" separator, so it needs its own flag-injection guard).
+func TestAddRejectsLeadingDashBranch(t *testing.T) {
+	gitOrSkip(t)
+	repo := newRepo(t)
+	wt := filepath.Join(t.TempDir(), "wt")
+	if err := Add(repo, wt, "--evil", "main"); err == nil {
+		t.Error(`Add branch "--evil" = nil, want error (flag-injection guard)`)
+	}
+}
+
+// TestStatusAndBranchStatusRejectLeadingDashBase reaches checkBaseRef through the
+// public API both callers use, proving a "-"-prefixed base is rejected before it
+// reaches the rev-list revspec.
+func TestStatusAndBranchStatusRejectLeadingDashBase(t *testing.T) {
+	gitOrSkip(t)
+	repo := newRepo(t)
+	wt := filepath.Join(t.TempDir(), "wt")
+	if err := Add(repo, wt, "feat/x", "main"); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if _, err := Status(wt, "-rf"); err == nil {
+		t.Error(`Status base "-rf" = nil, want error (checkBaseRef via public API)`)
+	}
+	if _, err := BranchStatus(wt, "feat/x", "-rf"); err == nil {
+		t.Error(`BranchStatus base "-rf" = nil, want error`)
+	}
+}
