@@ -6,6 +6,7 @@ import (
 
 	"github.com/kimhyoyeon/context-manager/internal/output"
 	"github.com/kimhyoyeon/context-manager/internal/store"
+	"github.com/kimhyoyeon/context-manager/internal/task"
 )
 
 func dirExists(p string) bool {
@@ -66,6 +67,34 @@ func classifyLoadErr(name string, err error) error {
 		return output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", name)
 	}
 	return output.Errorf(jsonOut, output.ErrState, "task %q is unreadable: %v", name, err)
+}
+
+// lockedLoadTask is the write-path counterpart to loadTask: it checks the task dir,
+// takes the per-task exclusive lock, THEN loads. The caller MUST defer the returned
+// unlock; holding it across the subsequent task.Save makes the whole
+// load->modify->save sequence atomic against other ctx mutations, preventing the
+// last-writer-wins loss that concurrent edits would otherwise cause. Read-only
+// callers keep loadTask (no lock): AtomicWrite's rename gives readers a consistent
+// snapshot without serializing them. A missing task is reported as NOT_FOUND before
+// the lock is taken, so neither the task dir nor its lock file is created for it.
+func lockedLoadTask(home, name string) (string, *task.Task, func(), error) {
+	dir, err := checkedTaskDir(home, name)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	if !dirExists(dir) {
+		return "", nil, nil, classifyLoadErr(name, os.ErrNotExist)
+	}
+	unlock, err := store.Lock(store.TaskLockPath(dir))
+	if err != nil {
+		return "", nil, nil, err
+	}
+	tk, err := task.Load(dir)
+	if err != nil {
+		unlock()
+		return "", nil, nil, classifyLoadErr(name, err)
+	}
+	return dir, tk, unlock, nil
 }
 
 func joinArgs(a []string) string { return strings.Join(a, " ") }
