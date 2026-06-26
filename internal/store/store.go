@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 )
 
 // ValidName validates that name is a safe single path component usable as a
@@ -129,6 +130,35 @@ func AtomicWrite(path string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// TaskLockPath returns the per-task advisory-lock file path. It is a DEDICATED file,
+// never the renamed task.yaml: AtomicWrite swaps task.yaml's inode via rename, so a
+// Flock taken on task.yaml itself would survive on a now-orphaned inode. Locking a
+// file that is never renamed keeps the lock meaningful across the whole save.
+func TaskLockPath(taskDir string) string { return filepath.Join(taskDir, ".task.lock") }
+
+// Lock takes a blocking exclusive advisory lock (flock) on lockPath and returns a
+// release function that unlocks and closes it. It serializes the load->modify->save
+// critical section across concurrent ctx processes so a slower writer cannot clobber
+// a faster one's change (last-writer-wins). The lock is advisory and Unix-only
+// (syscall.Flock); every ctx mutation cooperates by taking it. The lock lives on the
+// open file description, so it auto-releases on process exit and stays valid even if
+// the lock file is unlinked out from under it (e.g. `ctx done` deleting the task dir).
+// The caller is responsible for ensuring lockPath's parent (the task dir) exists.
+func Lock(lockPath string) (func(), error) {
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}, nil
 }
 
 // ListTasks returns names of directories under home that contain a task.yaml,
