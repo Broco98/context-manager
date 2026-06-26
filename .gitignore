@@ -10,3 +10,9 @@ coverage.*
 
 # OS
 .DS_Store
+
+# IDE
+.idea/
+
+# Handoff session state
+.claude/handoffs/
