@@ -8,10 +8,11 @@ import (
 )
 
 func runGoalSet(home, taskName, objective, doneWhen string) (task.Goal, error) {
-	dir, tk, err := loadTask(home, taskName)
+	dir, tk, unlock, err := lockedLoadTask(home, taskName)
 	if err != nil {
 		return task.Goal{}, err
 	}
+	defer unlock()
 	if objective != "" {
 		tk.Goal.Objective = objective
 	}

@@ -33,6 +33,19 @@ func runAdd(home, taskName string, o addOpts) (*task.Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !dirExists(taskDir) {
+		return nil, output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", taskName)
+	}
+	// Hold the per-task lock across the whole conflict-check -> worktree-create ->
+	// save critical section (and the rollback defer below): two concurrent `ctx add`
+	// on the same task must serialize, or both pass the "already registered" check on
+	// a stale snapshot and the second save clobbers the first's project (the very race
+	// that orphaned a worktree while only one project survived in task.yaml).
+	unlock, err := store.Lock(store.TaskLockPath(taskDir))
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	tk, err := task.Load(taskDir)
 	if err != nil {
 		return nil, output.Errorf(jsonOut, output.ErrNotFound, "task %q not found", taskName)

@@ -31,10 +31,11 @@ func runTaskAdd(home, taskName, text string) (task.WorkItem, error) {
 	if strings.TrimSpace(text) == "" {
 		return task.WorkItem{}, output.Errorf(jsonOut, output.ErrUsage, "message is empty")
 	}
-	dir, tk, err := loadTask(home, taskName)
+	dir, tk, unlock, err := lockedLoadTask(home, taskName)
 	if err != nil {
 		return task.WorkItem{}, err
 	}
+	defer unlock()
 	id := tk.AddWork(text)
 	if err := task.Save(dir, tk); err != nil {
 		return task.WorkItem{}, err
@@ -46,10 +47,11 @@ func runTaskSet(home, taskName string, id int, status string) error {
 	if status != "todo" && status != "doing" && status != "done" {
 		return output.Errorf(jsonOut, output.ErrUsage, "status must be todo|doing|done")
 	}
-	dir, tk, err := loadTask(home, taskName)
+	dir, tk, unlock, err := lockedLoadTask(home, taskName)
 	if err != nil {
 		return err
 	}
+	defer unlock()
 	if !tk.SetWork(id, status) {
 		return output.Errorf(jsonOut, output.ErrNotFound, "worklist item %d not found", id)
 	}

@@ -15,10 +15,11 @@ func runSetStatus(home, taskName, project, status string) error {
 	default:
 		return output.Errorf(jsonOut, output.ErrUsage, "status must be planned|in_progress|review|done")
 	}
-	dir, tk, err := loadTask(home, taskName)
+	dir, tk, unlock, err := lockedLoadTask(home, taskName)
 	if err != nil {
 		return err
 	}
+	defer unlock()
 	p := tk.Project(project)
 	if p == nil {
 		return output.Errorf(jsonOut, output.ErrNotFound, "project %q not found", project)

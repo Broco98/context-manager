@@ -32,10 +32,11 @@ type doneResult struct {
 // folder is deleted, so a registered worktree is never orphaned with its metadata
 // destroyed.
 func runDone(home, taskName string, force bool) (doneResult, error) {
-	dir, tk, err := loadTask(home, taskName)
+	dir, tk, unlock, err := lockedLoadTask(home, taskName)
 	if err != nil {
 		return doneResult{}, err
 	}
+	defer unlock()
 
 	// Phase 1: consolidation prerequisite. This is enforced even under --force:
 	// SPEC §7/§9 require that a task's findings be consolidated (provenance
