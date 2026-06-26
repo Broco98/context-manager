@@ -92,12 +92,21 @@ ctx가 관리하는 구조는 최대 **3단계 깊이**입니다 — 레포 자�
 
 ## 설치
 
-Go 1.22+ 와 `PATH` 상의 `git`이 필요합니다.
+Go 1.25+ 와 `PATH` 상의 `git`이 필요합니다.
+
+```sh
+# 설치 + PATH 설정 + 동작 검증을 한 번에. go install 로 바이너리를 깔고,
+# 셸 rc(zsh→.zshrc, bash→.bashrc)에 PATH 한 줄을 멱등하게 추가합니다.
+./scripts/install.sh
+ctx --help                                       # 새 터미널(또는 `source ~/.zshrc`) 후 실행 확인
+```
+
+PATH를 직접 관리한다면 스크립트 없이 한 줄로도 됩니다.
 
 ```sh
 # CGO_ENABLED=0 은 순수 Go 정적 바이너리를 강제합니다(libc 링크 없음).
-CGO_ENABLED=0 go build -o ~/bin/ctx ./cmd/ctx    # ~/bin 이 PATH에 있는지 확인
-ctx --help                                       # 실행 확인
+# go install 은 GOBIN, 없으면 GOPATH/bin(보통 ~/go/bin)에 배치합니다 — PATH에 있는지 확인.
+CGO_ENABLED=0 go install ./cmd/ctx
 ```
 
 ---
